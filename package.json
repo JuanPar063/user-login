@@ -18,9 +18,15 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "migration:generate": "ts-node ./node_modules/typeorm/cli.js migration:generate -d src/infrastructure/config/database.config.ts",
-    "migration:run": "ts-node ./node_modules/typeorm/cli.js migration:run -d src/infrastructure/config/database.config.ts",
-    "migration:create": "ts-node ./node_modules/typeorm/cli.js migration:create src/migrations/InitialSchema" 
+    "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/infrastructure/config/database.config.ts",
+    "migration:run": "typeorm-ts-node-commonjs migration:run -d src/infrastructure/config/database.config.ts",
+    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/infrastructure/config/database.config.ts",
+    "migration:create": "typeorm-ts-node-commonjs migration:create src/migrations/Migration",
+    "seed": "ts-node src/scripts/seed.ts",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:build": "docker-compose build",
+    "docker:logs": "docker-compose logs -f auth-service"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
