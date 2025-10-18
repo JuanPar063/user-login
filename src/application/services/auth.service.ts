@@ -14,6 +14,9 @@ import {
   AuthResponseDto,
   UserResponseDto,
 } from '../../infrastructure/dto/auth.dto';
+import { v4 as uuidv4 } from 'uuid'; // Importa uuid
+import * as bcrypt from 'bcrypt';
+
 
 @Injectable()
 export class AuthService {
@@ -39,12 +42,15 @@ export class AuthService {
         throw new ConflictException('Email already exists');
       }
     }
+    const hashedPassword = await bcrypt.hash(password, 10);
+
 
     // Create new user
     const user = this.userRepository.create({
+      id_user: uuidv4(),
       username,
       email,
-      password,
+      password: hashedPassword,
       role: role || UserRole.CLIENT,
     });
 
