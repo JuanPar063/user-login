@@ -8,6 +8,31 @@ export class InitialSchema1700000000000 implements MigrationInterface {
     await queryRunner.query(`
       CREATE TYPE "user_role_enum" AS ENUM('admin', 'client', 'teller')
     `);
+    await queryRunner.query(`
+      ALTER TABLE "users"
+      ADD COLUMN "created_at" TIMESTAMPTZ DEFAULT NOW();
+    `);
+    await queryRunner.query(`
+      ALTER TABLE "users"
+      ADD COLUMN "updated_at" TIMESTAMPTZ DEFAULT NOW();
+    `);
+
+    // Opcional: Trigger para actualizar updated_at en cada UPDATE
+    await queryRunner.query(`
+      CREATE OR REPLACE FUNCTION update_updated_at_column()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        NEW.updated_at = NOW();
+        RETURN NEW;
+      END;
+      $$ language 'plpgsql';
+    `);
+    await queryRunner.query(`
+      CREATE TRIGGER update_users_updated_at
+      BEFORE UPDATE ON "users"
+      FOR EACH ROW
+      EXECUTE PROCEDURE update_updated_at_column();
+    `);
 
     // Create users table
     await queryRunner.createTable(
@@ -80,5 +105,18 @@ export class InitialSchema1700000000000 implements MigrationInterface {
 
     // Drop enum type
     await queryRunner.query(`DROP TYPE "user_role_enum"`);
+
+     await queryRunner.query(`
+      DROP TRIGGER IF EXISTS update_users_updated_at ON "users";
+    `);
+    await queryRunner.query(`
+      DROP FUNCTION IF EXISTS update_updated_at_column;
+    `);
+    await queryRunner.query(`
+      ALTER TABLE "users" DROP COLUMN "created_at";
+    `);
+    await queryRunner.query(`
+      ALTER TABLE "users" DROP COLUMN "updated_at";
+    `);
   }
 }
