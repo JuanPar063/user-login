@@ -44,7 +44,7 @@ export class RegisterDto {
 
   @ApiProperty({
     enum: UserRole,
-    example: UserRole.USER,
+    example: UserRole.CLIENT,
     description: 'Rol del usuario (opcional)',
     required: false,
   })
@@ -73,7 +73,7 @@ export class UserResponseDto {
   @ApiProperty({ example: 'john@example.com', description: 'Correo electrónico' })
   email: string;
 
-  @ApiProperty({ enum: UserRole, example: UserRole.USER, description: 'Rol del usuario' })
+  @ApiProperty({ enum: UserRole, example: UserRole.CLIENT, description: 'Rol del usuario' })
   role: UserRole;
 
   @ApiProperty({ example: '2025-01-01T10:00:00Z', description: 'Fecha de creación' })
