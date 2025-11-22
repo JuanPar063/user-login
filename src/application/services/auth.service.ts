@@ -3,6 +3,7 @@ import {
   ConflictException,
   UnauthorizedException,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -14,9 +15,8 @@ import {
   AuthResponseDto,
   UserResponseDto,
 } from '../../infrastructure/dto/auth.dto';
-import { v4 as uuidv4 } from 'uuid'; // Importa uuid
+import { v4 as uuidv4 } from 'uuid';
 import * as bcrypt from 'bcrypt';
-
 
 @Injectable()
 export class AuthService {
@@ -42,8 +42,8 @@ export class AuthService {
         throw new ConflictException('Email already exists');
       }
     }
-    const hashedPassword = await bcrypt.hash(password, 10);
 
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create new user
     const user = this.userRepository.create({
@@ -84,7 +84,7 @@ export class AuthService {
   async login(loginDto: LoginDto): Promise<AuthResponseDto> {
     const { username, password } = loginDto;
 
-    // Find user with password (select: false is overridden)
+    // ✅ MEJORA: Buscar usuario primero para dar mensajes específicos
     const user = await this.userRepository.findOne({
       where: { username },
       select: [
@@ -98,14 +98,19 @@ export class AuthService {
       ],
     });
 
+    // ✅ MEJORA: Si el usuario no existe, lanzar NotFoundException
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new NotFoundException(
+        `El usuario "${username}" no existe. Por favor, regístrate primero.`
+      );
     }
 
-    // Verify password
+    // ✅ MEJORA: Si el usuario existe pero la contraseña es incorrecta
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException(
+        'Contraseña incorrecta. Verifica tus credenciales.'
+      );
     }
 
     // Generate JWT token
