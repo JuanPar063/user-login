@@ -1,9 +1,12 @@
+// src/application/services/auth.service.ts (user-login) - AGREGAR AL FINAL
+
 import {
   Injectable,
   ConflictException,
   UnauthorizedException,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -20,6 +23,8 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -29,7 +34,6 @@ export class AuthService {
   async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
     const { username, email, password, role } = registerDto;
 
-    // Check if user already exists
     const existingUser = await this.userRepository.findOne({
       where: [{ username }, { email }],
     });
@@ -45,7 +49,6 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create new user
     const user = this.userRepository.create({
       id_user: uuidv4(),
       username,
@@ -54,10 +57,8 @@ export class AuthService {
       role: role || UserRole.CLIENT,
     });
 
-    // Save user (password will be hashed automatically)
     const savedUser = await this.userRepository.save(user);
 
-    // Generate JWT token
     const payload = {
       sub: savedUser.id_user,
       username: savedUser.username,
@@ -65,7 +66,6 @@ export class AuthService {
     };
     const access_token = this.jwtService.sign(payload);
 
-    // Return response without password
     const userResponse: UserResponseDto = {
       id_user: savedUser.id_user,
       username: savedUser.username,
@@ -84,7 +84,6 @@ export class AuthService {
   async login(loginDto: LoginDto): Promise<AuthResponseDto> {
     const { username, password } = loginDto;
 
-    // ✅ MEJORA: Buscar usuario primero para dar mensajes específicos
     const user = await this.userRepository.findOne({
       where: { username },
       select: [
@@ -98,14 +97,12 @@ export class AuthService {
       ],
     });
 
-    // ✅ MEJORA: Si el usuario no existe, lanzar NotFoundException
     if (!user) {
       throw new NotFoundException(
         `El usuario "${username}" no existe. Por favor, regístrate primero.`
       );
     }
 
-    // ✅ MEJORA: Si el usuario existe pero la contraseña es incorrecta
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       throw new UnauthorizedException(
@@ -113,7 +110,6 @@ export class AuthService {
       );
     }
 
-    // Generate JWT token
     const payload = {
       sub: user.id_user,
       username: user.username,
@@ -121,7 +117,6 @@ export class AuthService {
     };
     const access_token = this.jwtService.sign(payload);
 
-    // Return response without password
     const userResponse: UserResponseDto = {
       id_user: user.id_user,
       username: user.username,
@@ -192,5 +187,31 @@ export class AuthService {
       created_at: user.created_at,
       updated_at: user.updated_at,
     }));
+  }
+
+  /**
+   * ✅ NUEVO: Elimina un usuario por ID (usado en rollback)
+   * Este método se llama cuando la creación del perfil falla
+   */
+  async deleteUser(id: string): Promise<void> {
+    try {
+      this.logger.log(`🔄 Intentando eliminar usuario con ID: ${id}`);
+      
+      const user = await this.userRepository.findOne({
+        where: { id_user: id },
+      });
+
+      if (!user) {
+        this.logger.warn(`⚠️ Usuario con ID ${id} no encontrado para eliminar`);
+        throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
+      }
+
+      await this.userRepository.remove(user);
+      this.logger.log(`✅ Usuario ${user.username} (${id}) eliminado correctamente`);
+      
+    } catch (error) {
+      this.logger.error(`❌ Error al eliminar usuario ${id}:`, error);
+      throw error;
+    }
   }
 }

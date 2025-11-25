@@ -1,3 +1,5 @@
+// src/presentation/controllers/auth.controller.ts (user-login)
+
 import {
   Controller,
   Post,
@@ -7,6 +9,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Delete,
 } from '@nestjs/common';
 import { AuthService } from '../../application/services/auth.service';
 import {
@@ -18,9 +21,7 @@ import {
 } from '../../infrastructure/dto/auth.dto';
 import { JwtAuthGuard } from '../../infrastructure/auth/guards/jwt-auth.guard';
 import { Public } from '../../infrastructure/auth/decorators/public.decorator';
-import { UserRole } from '../../domain/entities/user.entity';
 
-// Swagger
 import {
   ApiTags,
   ApiOperation,
@@ -28,6 +29,8 @@ import {
   ApiOkResponse,
   ApiUnauthorizedResponse,
   ApiBearerAuth,
+  ApiParam,
+  ApiResponse,
 } from '@nestjs/swagger';
 
 @ApiTags('auth')
@@ -71,53 +74,34 @@ export class AuthController {
   })
   @ApiUnauthorizedResponse({ description: 'Token inválido o ausente' })
   async logout(): Promise<MessageResponseDto> {
-    // En una implementación real, podrías invalidar el token (lista negra, etc.)
     return {
       message: 'Logged out successfully',
       statusCode: HttpStatus.OK,
     };
   }
 
-  // --- Rutas comentadas de referencia ---
-  // Si decides habilitarlas, deja los decoradores y tipos igual que arriba.
-  /*
-  @UseGuards(JwtAuthGuard)
-  @Get('profile')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Perfil del usuario autenticado' })
-  @ApiOkResponse({ description: 'Perfil encontrado', type: UserResponseDto })
-  async getProfile(@CurrentUser() user: any): Promise<UserResponseDto> {
-    return this.authService.findUserById(user.userId);
-  }
-
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @Get('users')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Listar usuarios (solo ADMIN)' })
-  @ApiOkResponse({ description: 'Lista de usuarios', type: [UserResponseDto] })
-  async getAllUsers(): Promise<UserResponseDto[]> {
-    return this.authService.getAllUsers();
-  }
-
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @Get('users/:id')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Obtener usuario por ID (solo ADMIN)' })
-  @ApiOkResponse({ description: 'Usuario encontrado', type: UserResponseDto })
-  async getUserById(@Param('id') id: string): Promise<UserResponseDto> {
-    return this.authService.findUserById(id);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Post('validate-token')
+  /**
+   * ✅ NUEVO: Endpoint para eliminar usuario (usado en rollback)
+   * Permite eliminar un usuario sin autenticación para casos de rollback
+   */
+  @Public()
+  @Delete('users/:id')
   @HttpCode(HttpStatus.OK)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Validar token actual' })
-  @ApiOkResponse({ description: 'Token válido', type: MessageResponseDto })
-  async validateToken(@CurrentUser() user: any): Promise<MessageResponseDto> {
-    return { message: 'Token is valid', statusCode: HttpStatus.OK };
+  @ApiOperation({ 
+    summary: 'Eliminar usuario (usado para rollback en registro fallido)',
+    description: 'Elimina un usuario por ID. Usado cuando falla la creación del perfil.'
+  })
+  @ApiParam({ name: 'id', type: String, description: 'ID del usuario a eliminar' })
+  @ApiOkResponse({
+    description: 'Usuario eliminado correctamente',
+    type: MessageResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Usuario no encontrado' })
+  async deleteUser(@Param('id') id: string): Promise<MessageResponseDto> {
+    await this.authService.deleteUser(id);
+    return {
+      message: 'Usuario eliminado correctamente',
+      statusCode: HttpStatus.OK,
+    };
   }
-  */
 }
